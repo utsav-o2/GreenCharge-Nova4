@@ -1,98 +1,135 @@
+/**
+ * lib/storage.ts
+ *
+ * All data access goes through getUserKey() so every value is namespaced to
+ * the currently-logged-in user's email. Switching accounts on the same browser
+ * always loads the correct person's data.
+ *
+ * Keys written to localStorage:
+ *   greencharge_vehicle_{email}   → VehicleProfile object
+ *   greencharge_sessions_{email}  → Session[]
+ *   greencharge_booking_{email}   → Booking object
+ *   greencharge_ecocoins_{email}  → number (coin balance)
+ *
+ * The user registry ("greencharge_users") and the session key
+ * ("greencharge_current_user") are managed in lib/auth.ts.
+ *
+ * Legacy getUser/setUser/clearUser shims are kept so existing imports don't
+ * break — they delegate to lib/auth.ts.
+ */
+
 import { UserProfile, VehicleProfile } from './types';
+import { getCurrentUser, logout, getUserKey } from './auth';
 
-const USER_KEY = 'greencharge_user';
-const VEHICLE_KEY = 'greencharge_vehicle';
-const SESSIONS_KEY = 'greencharge_sessions';
-const BOOKING_KEY = 'greencharge_booking';
-const ECOCOINS_KEY = 'greencharge_ecocoins';
+// ---------------------------------------------------------------------------
+// Legacy shims — keeps existing code from breaking during migration
+// ---------------------------------------------------------------------------
 
-// --- User ---
+/** @deprecated Use getCurrentUser() from lib/auth.ts */
 export function getUser(): UserProfile | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return getCurrentUser();
 }
 
-export function setUser(user: UserProfile): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+/** @deprecated Account creation is now handled by signup() in lib/auth.ts */
+export function setUser(_user: UserProfile): void {
+  // no-op — accounts are created via auth.signup(); session via auth.login()
 }
 
+/** @deprecated Use logout() from lib/auth.ts */
 export function clearUser(): void {
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(VEHICLE_KEY);
-  localStorage.removeItem(SESSIONS_KEY);
-  localStorage.removeItem(BOOKING_KEY);
-  localStorage.removeItem(ECOCOINS_KEY);
+  logout();
 }
 
-// --- Vehicle ---
-export function getVehicle(): VehicleProfile | null {
-  if (typeof window === 'undefined') return null;
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+function readKey<T>(baseKey: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const key = getUserKey(baseKey);
+  if (!key) return fallback;
   try {
-    const raw = localStorage.getItem(VEHICLE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return null;
+    return fallback;
   }
+}
+
+function writeKey<T>(baseKey: string, value: T): void {
+  const key = getUserKey(baseKey);
+  if (!key) return; // no user logged in — caller should have checked
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle
+// ---------------------------------------------------------------------------
+
+const VEHICLE_BASE = 'greencharge_vehicle';
+
+export function getVehicle(): VehicleProfile | null {
+  return readKey<VehicleProfile | null>(VEHICLE_BASE, null);
 }
 
 export function setVehicle(vehicle: VehicleProfile): void {
-  localStorage.setItem(VEHICLE_KEY, JSON.stringify(vehicle));
+  writeKey(VEHICLE_BASE, vehicle);
 }
 
-// --- Booking ---
+// ---------------------------------------------------------------------------
+// Booking
+// ---------------------------------------------------------------------------
+
+const BOOKING_BASE = 'greencharge_booking';
+
 export function setBooking(booking: object): void {
-  localStorage.setItem(BOOKING_KEY, JSON.stringify(booking));
+  writeKey(BOOKING_BASE, booking);
 }
 
 export function getBooking(): object | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(BOOKING_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return readKey<object | null>(BOOKING_BASE, null);
 }
 
-// --- Sessions ---
+// ---------------------------------------------------------------------------
+// Sessions
+// ---------------------------------------------------------------------------
+
+const SESSIONS_BASE = 'greencharge_sessions';
+
 export function getLocalSessions(): object[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(SESSIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return readKey<object[]>(SESSIONS_BASE, []);
 }
 
 export function addLocalSession(session: object): void {
   const existing = getLocalSessions();
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify([...existing, session]));
+  writeKey(SESSIONS_BASE, [...existing, session]);
 }
 
-// --- EcoCoins ---
+// ---------------------------------------------------------------------------
+// EcoCoins
+// ---------------------------------------------------------------------------
+
+const ECOCOINS_BASE = 'greencharge_ecocoins';
+
 export function getEcoCoins(): number {
-  if (typeof window === 'undefined') return 220;
-  const val = localStorage.getItem(ECOCOINS_KEY);
-  return val ? parseInt(val, 10) : 220;
+  // Default starting balance for a new account is 0; 220 was a shared demo seed.
+  return readKey<number>(ECOCOINS_BASE, 0);
 }
 
 export function addEcoCoins(amount: number): void {
   const current = getEcoCoins();
-  localStorage.setItem(ECOCOINS_KEY, String(current + amount));
+  writeKey(ECOCOINS_BASE, current + amount);
 }
+
+// ---------------------------------------------------------------------------
+// Greeting helper (stateless — no storage needed)
+// ---------------------------------------------------------------------------
 
 export function getGreeting(name: string): string {
   const hour = new Date().getHours();
   let period: string;
   if (hour >= 5 && hour < 12) period = 'morning';
   else if (hour >= 12 && hour < 17) period = 'afternoon';
-  else if (hour >= 17 && hour < 21) period = 'evening';
-  else period = 'night';
+  else period = 'evening'; // covers 17:00 through 4:59
   return `Good ${period}, ${name.split(' ')[0]}`;
 }

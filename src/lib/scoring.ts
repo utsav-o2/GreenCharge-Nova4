@@ -1,11 +1,10 @@
 import {
-  Station,
+  RankedStation,
   EnergyMixRow,
   GridConditionRow,
   VehicleProfile,
   StationScore,
 } from './types';
-import { haversineDistance, DEMO_USER_LAT, DEMO_USER_LNG } from './distance';
 
 // Normalize a value to 0-1 given min and max (higher = better)
 function normalize(value: number, min: number, max: number): number {
@@ -19,12 +18,11 @@ function normalizeInverse(value: number, min: number, max: number): number {
 }
 
 export function scoreStations(
-  stations: Station[],
+  stations: RankedStation[],
   energyMix: EnergyMixRow[],
   gridConditions: GridConditionRow[],
   vehicle: VehicleProfile,
-  userLat = DEMO_USER_LAT,
-  userLng = DEMO_USER_LNG
+  currentPct: number
 ): StationScore[] {
   const currentHour = new Date().getHours();
 
@@ -49,9 +47,7 @@ export function scoreStations(
     gridConditions[currentHour];
 
   // Ranges for normalization
-  const distances = stations.map((s) =>
-    haversineDistance(userLat, userLng, s.lat, s.lng)
-  );
+  const distances = stations.map((s) => s.distance_km);
   const minDist = Math.min(...distances);
   const maxDist = Math.max(...distances);
   const prices = stations.map((s) => s.price_per_kwh);
@@ -59,7 +55,7 @@ export function scoreStations(
   const maxPrice = Math.max(...prices);
 
   const requiredKwh =
-    ((vehicle.target_pct - vehicle.current_pct) / 100) * vehicle.battery_kwh;
+    ((vehicle.target_pct - currentPct) / 100) * vehicle.battery_kwh;
   const baselinePrice = maxPrice; // worst-case price for savings calc
 
   return stations.map((station, i) => {
@@ -114,7 +110,7 @@ export function scoreStations(
         distance: Math.round(distScore * 100),
         availability: Math.round(availability * 100),
       },
-      distance_km: Math.round(distance * 10) / 10,
+      distance_km: distance,
       bestHour,
       estimatedCost,
       savingsVsBaseline,
@@ -151,8 +147,8 @@ export function computeGreenScore(sessions: { renewable_pct: number }[]): number
   return Math.min(100, Math.round(avgRenewable));
 }
 
-export function computeRequiredKwh(vehicle: VehicleProfile): number {
-  const diff = Math.max(0, vehicle.target_pct - vehicle.current_pct);
+export function computeRequiredKwh(vehicle: VehicleProfile, currentPct: number): number {
+  const diff = Math.max(0, vehicle.target_pct - currentPct);
   return Math.round((diff / 100) * vehicle.battery_kwh * 10) / 10;
 }
 

@@ -15,6 +15,10 @@ export interface Station {
   max_power_kw: number;
 }
 
+export interface RankedStation extends Station {
+  distance_km: number;
+}
+
 export interface EnergyMixRow {
   hour: number;
   solar_pct: number;
@@ -33,7 +37,6 @@ export interface VehicleProfile {
   brand: string;
   model: string;
   battery_kwh: number;
-  current_pct: number;
   target_pct: number;
 }
 
