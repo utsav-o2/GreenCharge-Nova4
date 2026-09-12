@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database
+*.db
+*.db-journal
+
+# generated/scratch
+data/raw/debug.txt
+scripts/extract_pasted_csv.js
+.agents/
+.claude/
+.cursor/
+.devin/

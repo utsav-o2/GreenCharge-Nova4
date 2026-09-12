@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Station {
+  stationId      String   @id @default(uuid()) @map("station_id")
+  name           String
+  city           String
+  state          String
+  latitude       Float
+  longitude      Float
+  operator       String
+  usageType      String   @map("usage_type")
+  connectorType  String   @map("connector_type")
+  powerKw        Float    @map("power_kw")
+  totalBays      Int      @default(2) @map("total_bays")
+  needsReview    Boolean  @default(false) @map("needs_review")
+
+  @@map("stations")
+}
