@@ -1,16 +1,16 @@
 import { RankedStation } from "./types";
-import { mapDbToFrontend } from "./db-to-frontend";
+import { fetchAllStations } from "./api-client";
+import { getSettings } from "./storage";
 import { getUserLocation } from "./location";
 import { haversineDistance, DEMO_USER_LAT, DEMO_USER_LNG } from "./distance";
 
 export async function getRankedStations(): Promise<{ stations: RankedStation[], userLoc: {lat: number, lng: number} | null }> {
-  const [res, userLoc] = await Promise.all([
-    fetch("/api/stations?pageSize=2000"),
-    getUserLocation(),
+  const settings = getSettings();
+  
+  const [rawStations, userLoc] = await Promise.all([
+    fetchAllStations(),
+    settings.locationServices ? getUserLocation() : Promise.resolve(null),
   ]);
-
-  const json = await res.json();
-  const rawStations = json.data ? json.data.map(mapDbToFrontend) : [];
 
   const lat = userLoc?.lat ?? DEMO_USER_LAT;
   const lng = userLoc?.lng ?? DEMO_USER_LNG;

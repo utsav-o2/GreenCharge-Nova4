@@ -1,7 +1,8 @@
 import { Station as FrontendStation } from './types';
+import { getStationOverrides } from './stations-overlay';
 
 export function mapDbToFrontend(dbStation: any): FrontendStation {
-  return {
+  const baseStation: FrontendStation = {
     id: dbStation.stationId,
     name: dbStation.name,
     address: `${dbStation.city}, ${dbStation.state}`,
@@ -17,4 +18,12 @@ export function mapDbToFrontend(dbStation: any): FrontendStation {
     operator: dbStation.operator,
     max_power_kw: dbStation.powerKw,
   };
+
+  const overrides = getStationOverrides(baseStation.id);
+  
+  if (overrides) {
+    return { ...baseStation, ...overrides };
+  }
+  
+  return baseStation;
 }

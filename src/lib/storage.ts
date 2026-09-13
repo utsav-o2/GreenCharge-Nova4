@@ -106,8 +106,29 @@ export function addLocalSession(session: object): void {
 }
 
 // ---------------------------------------------------------------------------
-// EcoCoins
+// Settings
 // ---------------------------------------------------------------------------
+
+export interface UserSettings {
+  notifications: boolean;
+  locationServices: boolean;
+  dataPrivacy: boolean;
+}
+
+const SETTINGS_BASE = 'greencharge_settings';
+
+export function getSettings(): UserSettings {
+  return readKey<UserSettings>(SETTINGS_BASE, {
+    notifications: true,
+    locationServices: true,
+    dataPrivacy: true
+  });
+}
+
+export function updateSettings(updates: Partial<UserSettings>): void {
+  const current = getSettings();
+  writeKey(SETTINGS_BASE, { ...current, ...updates });
+}
 
 const ECOCOINS_BASE = 'greencharge_ecocoins';
 

@@ -1,15 +1,40 @@
 "use client";
-import { Bell, LogOut, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LogOut, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
 
 interface HeaderProps {
   greeting?: string;
   showLogout?: boolean;
+  isOperator?: boolean;
 }
 
-export default function Header({ greeting, showLogout = true }: HeaderProps) {
+export default function Header({ greeting, showLogout = true, isOperator = false }: HeaderProps) {
   const router = useRouter();
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  useEffect(() => {
+    if (!isOperator) return;
+
+    let lastUpdatedTime = Date.now();
+    
+    // Reset timer when our dashboard fires a refresh event
+    const handleRefresh = () => {
+      lastUpdatedTime = Date.now();
+      setSecondsAgo(0);
+    };
+    window.addEventListener("gc-data-refresh", handleRefresh);
+
+    const interval = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastUpdatedTime) / 1000));
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("gc-data-refresh", handleRefresh);
+    };
+  }, [isOperator]);
 
   function handleLogout() {
     logout();
@@ -48,16 +73,20 @@ export default function Header({ greeting, showLogout = true }: HeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            className="w-9 h-9 rounded-xl flex items-center justify-center relative transition-colors hover:bg-white/5"
-            aria-label="Notifications"
-          >
-            <Bell size={18} style={{ color: "var(--color-gc-muted)" }} />
-            <span
-              className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-              style={{ background: "var(--color-gc-accent)" }}
-            />
-          </button>
+          {isOperator && (
+            <div className="flex items-center gap-2 mr-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Live</span>
+              </div>
+              <span className="text-xs font-medium text-gray-400 hidden sm:block w-36 text-right">
+                Last updated {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
+              </span>
+            </div>
+          )}
           {showLogout && (
             <button
               onClick={handleLogout}

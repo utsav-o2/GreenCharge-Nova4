@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Battery, Edit2, Check, X, Zap, ChevronDown, CheckCircle2 } from "lucide-react";
 import { getCurrentUser, logout } from "@/lib/auth";
-import { getVehicle, setVehicle } from "@/lib/storage";
+import { getVehicle, setVehicle, UserSettings, getSettings, updateSettings } from "@/lib/storage";
 import { VehicleProfile, UserProfile } from "@/lib/types";
 
 interface EvModel {
@@ -22,6 +22,11 @@ export default function ProfilePage() {
   const [models, setModels] = useState<EvModel[]>([]);
   const [isCustom, setIsCustom] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
+  const [settings, setSettings] = useState<UserSettings>({
+    notifications: true,
+    locationServices: true,
+    dataPrivacy: true
+  });
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -31,6 +36,7 @@ export default function ProfilePage() {
     setVehicleState(v);
     setEditVehicle(v);
     if (v?.brand === "Other/Custom") setIsCustom(true);
+    setSettings(getSettings());
 
     fetch("/data/ev_models.json")
       .then((r) => r.json())
@@ -238,24 +244,36 @@ export default function ProfilePage() {
             <div className="card mb-4 animate-fade-slide-up stagger-3">
               <h3 className="font-semibold mb-3">Settings</h3>
               <div className="flex flex-col gap-1">
-                {["Notifications", "Location Services", "Data & Privacy"].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center justify-between py-2.5 border-b"
-                    style={{ borderColor: "var(--color-gc-border)" }}
-                  >
-                    <span className="text-sm">{item}</span>
+                {[
+                  { key: "notifications", label: "Notifications" },
+                  { key: "locationServices", label: "Location Services" },
+                  { key: "dataPrivacy", label: "Data & Privacy" },
+                ].map((item) => {
+                  const isActive = settings[item.key as keyof UserSettings];
+                  return (
                     <div
-                      className="w-9 h-5 rounded-full relative"
-                      style={{ background: "rgba(34,197,94,0.3)" }}
+                      key={item.key}
+                      className="flex items-center justify-between py-2.5 border-b"
+                      style={{ borderColor: "var(--color-gc-border)" }}
                     >
-                      <div
-                        className="w-4 h-4 rounded-full absolute top-0.5 right-0.5"
-                        style={{ background: "var(--color-gc-accent)" }}
-                      />
+                      <span className="text-sm">{item.label}</span>
+                      <button
+                        onClick={() => {
+                          const newSettings = { ...settings, [item.key]: !isActive };
+                          setSettings(newSettings);
+                          updateSettings(newSettings);
+                        }}
+                        className="w-9 h-5 rounded-full relative transition-colors"
+                        style={{ background: isActive ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.1)" }}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded-full absolute top-0.5 transition-all ${isActive ? "right-0.5" : "left-0.5"}`}
+                          style={{ background: isActive ? "var(--color-gc-accent)" : "#9CA3AF" }}
+                        />
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

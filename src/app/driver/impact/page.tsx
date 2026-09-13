@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -18,6 +18,8 @@ export default function ImpactPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [energyMix, setEnergyMix] = useState<EnergyMixRow[]>([]);
   const [ecoCoins, setEcoCoins] = useState(220);
+  const [loading, setLoading] = useState(true);
+  const [historyLimit, setHistoryLimit] = useState(10);
   const [currentHour, setCurrentHour] = useState(0);
 
   useEffect(() => {
@@ -33,7 +35,9 @@ export default function ImpactPage() {
       fetch("/data/energy_mix.json").then((r) => r.json()),
     ]).then(([staticSessions, mix]: [Session[], EnergyMixRow[]]) => {
       const localSessions = getLocalSessions() as Session[];
-      setSessions([...staticSessions, ...localSessions]);
+      const combined = [...staticSessions, ...localSessions];
+      combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setSessions(combined);
       setEnergyMix(mix);
     });
   }, [router]);
@@ -45,7 +49,9 @@ export default function ImpactPage() {
   const moneySaved = sessions.reduce((s, r) => s + Math.round(r.cost * 0.15), 0);
   const co2Avoided = computeCO2Avoided(sessions);
   const greenScore = computeGreenScore(sessions);
-  const ecoCoinTarget = 250;
+  const ecoCoinTarget = 100;
+  const coinsTowardsNext = ecoCoins % ecoCoinTarget;
+  const availableDiscounts = Math.floor(ecoCoins / ecoCoinTarget);
 
   // Area chart data
   const chartData = energyMix.map((row) => ({
@@ -186,10 +192,17 @@ export default function ImpactPage() {
                 <span className="text-3xl font-bold" style={{ color: "#F59E0B" }}>{ecoCoins}</span>
                 <span className="text-sm" style={{ color: "var(--color-gc-muted)" }}>coins</span>
               </div>
-              <ProgressBar value={ecoCoins} max={ecoCoinTarget} color="#F59E0B" />
-              <p className="text-xs mt-2" style={{ color: "var(--color-gc-muted)" }}>
-                {Math.max(0, ecoCoinTarget - ecoCoins)} coins to unlock ₹100 discount
-              </p>
+              <ProgressBar value={coinsTowardsNext} max={ecoCoinTarget} color="#F59E0B" />
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-xs" style={{ color: "var(--color-gc-muted)" }}>
+                  {coinsTowardsNext}/{ecoCoinTarget} coins — {ecoCoinTarget - coinsTowardsNext} more for ₹100 off
+                </p>
+                {availableDiscounts > 0 && (
+                  <p className="text-xs font-semibold text-green-400">
+                    {availableDiscounts} x ₹100 discount{availableDiscounts > 1 ? 's' : ''} available!
+                  </p>
+                )}
+              </div>
 
               {/* Coin history */}
               <div className="mt-4 flex flex-col gap-2">
@@ -197,7 +210,9 @@ export default function ImpactPage() {
                   <div key={s.id} className="flex items-center justify-between py-1.5 border-t" style={{ borderColor: "var(--color-gc-border)" }}>
                     <div>
                       <p className="text-xs font-medium">{s.station_name}</p>
-                      <p className="text-xs" style={{ color: "var(--color-gc-muted)" }}>{s.date}</p>
+                      <p className="text-xs" style={{ color: "var(--color-gc-muted)" }}>
+                        {new Date(s.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })}
+                      </p>
                     </div>
                     <span className="text-sm font-bold" style={{ color: "#F59E0B" }}>
                       +{s.ecocoins_earned}
@@ -222,13 +237,15 @@ export default function ImpactPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sessions.map((s, i) => (
+                    {sessions.slice(0, historyLimit).map((s, i) => (
                       <tr
                         key={s.id}
                         className="border-t"
                         style={{ borderColor: "var(--color-gc-border)", animationDelay: `${i * 30}ms` }}
                       >
-                        <td className="py-2 pr-3 whitespace-nowrap">{s.date}</td>
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          {new Date(s.date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric" })}
+                        </td>
                         <td className="py-2 pr-3 max-w-[120px] truncate">{s.station_name}</td>
                         <td className="py-2 pr-3 font-medium">{s.energy_kwh} kWh</td>
                         <td className="py-2 pr-3 font-medium">₹{s.cost}</td>
@@ -240,6 +257,16 @@ export default function ImpactPage() {
                   </tbody>
                 </table>
               </div>
+              
+              {historyLimit < sessions.length && (
+                <button
+                  onClick={() => setHistoryLimit(prev => prev + 10)}
+                  className="w-full mt-4 py-3 text-sm font-semibold rounded-xl border transition-colors hover:bg-gray-800"
+                  style={{ borderColor: "var(--color-gc-border)", color: "var(--color-gc-text)" }}
+                >
+                  Show More History ↓
+                </button>
+              )}
             </div>
           </main>
   );

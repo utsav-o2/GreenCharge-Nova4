@@ -78,8 +78,9 @@ export default function DriverHomePage() {
 
   if (!vehicle) return null;
 
-  const ecoCoinTarget = 250;
-  const nextTier = ecoCoinTarget;
+  const ecoCoinTarget = 100;
+  const coinsTowardsNext = ecoCoins % ecoCoinTarget;
+  const availableDiscounts = Math.floor(ecoCoins / ecoCoinTarget);
   const gridStatusColor =
     gridCondition?.status === "low" ? "#22C55E"
       : gridCondition?.status === "moderate" ? "#F59E0B"
@@ -234,13 +235,20 @@ export default function DriverHomePage() {
                   {ecoCoins}
                 </span>
                 <span className="text-sm" style={{ color: "var(--color-gc-muted)" }}>
-                  / {nextTier} coins
+                  coins total
                 </span>
               </div>
-              <ProgressBar value={ecoCoins} max={nextTier} color="#F59E0B" />
-              <p className="text-xs mt-2" style={{ color: "var(--color-gc-muted)" }}>
-                {Math.max(0, nextTier - ecoCoins)} more coins for ₹100 off your next charge
-              </p>
+              <ProgressBar value={coinsTowardsNext} max={ecoCoinTarget} color="#F59E0B" />
+              <div className="flex flex-col gap-1 mt-2">
+                <p className="text-xs" style={{ color: "var(--color-gc-muted)" }}>
+                  {coinsTowardsNext}/{ecoCoinTarget} coins — {ecoCoinTarget - coinsTowardsNext} more for ₹100 off
+                </p>
+                {availableDiscounts > 0 && (
+                  <p className="text-xs font-semibold text-green-400">
+                    {availableDiscounts} x ₹100 discount{availableDiscounts > 1 ? 's' : ''} available!
+                  </p>
+                )}
+              </div>
             </div>
 
 

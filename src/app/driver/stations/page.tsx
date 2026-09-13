@@ -10,7 +10,7 @@ import { RankedStation } from "@/lib/types";
 export default function StationsPage() {
   const router = useRouter();
   const [stations, setStations] = useState<RankedStation[]>([]);
-  const [showAll, setShowAll] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [gridView, setGridView] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -35,15 +35,16 @@ export default function StationsPage() {
         s.city.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === "all" || s.status === filterStatus;
       return matchSearch && matchStatus;
-    })
-    .slice(0, showAll ? undefined : 15);
+    });
+
+  const displayStations = filtered.slice(0, displayLimit);
 
   return (
           <main className="flex-1 px-4 py-5 pb-24 lg:pb-8 max-w-screen-lg mx-auto w-full">
             <div className="mb-5">
               <h1 className="text-xl font-bold animate-fade-slide-up">Charging Stations</h1>
               <p className="text-sm mt-1 animate-fade-slide-up stagger-1" style={{ color: "var(--color-gc-muted)" }}>
-                {stations.length} stations{showAll ? " (full network)" : " near you"}
+                {filtered.length} stations found
               </p>
             </div>
 
@@ -117,7 +118,7 @@ export default function StationsPage() {
               </div>
             ) : (
               <div className={gridView ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "flex flex-col gap-3"}>
-                {filtered.map((station, i) => (
+                {displayStations.map((station, i) => (
                   <div key={station.id} style={{ animationDelay: `${i * 40}ms` }}>
                     <StationCard
                       station={station}
@@ -137,14 +138,15 @@ export default function StationsPage() {
             )}
 
             {/* Show all toggle */}
-            {!locLoading && (
+            {!locLoading && displayLimit < filtered.length && (
               <div className="mt-6 text-center">
                 <button
-                  onClick={() => setShowAll(!showAll)}
-                  className="btn-secondary text-sm"
+                  onClick={() => setDisplayLimit((prev) => prev + 10)}
+                  className="w-full py-3 text-sm font-semibold rounded-xl border transition-colors hover:bg-gray-800"
+                  style={{ borderColor: "var(--color-gc-border)", color: "var(--color-gc-text)" }}
                   id="toggle-all-stations"
                 >
-                  {showAll ? "Show fewer stations" : "Show all 855 stations →"}
+                  Show More Stations ↓
                 </button>
               </div>
             )}

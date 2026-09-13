@@ -39,21 +39,32 @@ export default function StatCard({
   useEffect(() => {
     if (!visible || !isNumber) return;
     const target = value as number;
-    const duration = 800;
-    const steps = 40;
-    const increment = target / steps;
-    let current = 0;
+    const duration = 500; // faster animation for live updates
+    const steps = 30;
+    const diff = target - displayed;
+    
+    // If it's already exactly at target, or the difference is very tiny, just snap
+    if (diff === 0) {
+      setDisplayed(target);
+      return;
+    }
+
+    const increment = diff / steps;
+    let current = displayed;
     const timer = setInterval(() => {
       current += increment;
-      if (current >= target) {
+      // Check if we've crossed the target (works for both counting up and counting down)
+      if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
         setDisplayed(target);
         clearInterval(timer);
       } else {
-        setDisplayed(Math.round(current));
+        // Need to handle decimals if target is decimal (like 95.4)
+        const isDecimal = target % 1 !== 0;
+        setDisplayed(isDecimal ? Number(current.toFixed(1)) : Math.round(current));
       }
     }, duration / steps);
     return () => clearInterval(timer);
-  }, [visible, value, isNumber]);
+  }, [visible, value, isNumber]); // deliberately excluding `displayed` to prevent infinite loop resetting
 
   return (
     <div

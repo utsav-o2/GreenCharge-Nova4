@@ -26,7 +26,7 @@ export default function OperatorLayout({
       <div className="h-screen flex overflow-hidden">
         <SidebarNav role="operator" />
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto lg:pl-60">
-          <Header greeting={greeting} />
+          <Header greeting={greeting} isOperator />
           <div className="flex-1 flex flex-col min-w-0">
             {children}
           </div>

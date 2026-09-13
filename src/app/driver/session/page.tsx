@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Clock, IndianRupee, Leaf, Battery, CheckCircle2, Star } from "lucide-react";
+import { Zap, Clock, IndianRupee, Leaf, Battery, CheckCircle2, Star, X } from "lucide-react";
 import ProgressBar from "@/components/ProgressBar";
 import { getCurrentUser } from "@/lib/auth";
-import { getBooking, getVehicle, addLocalSession, addEcoCoins } from "@/lib/storage";
+import { getBooking, getVehicle, addLocalSession, addEcoCoins, getSettings } from "@/lib/storage";
 import { VehicleProfile } from "@/lib/types";
 
 interface Booking {
@@ -29,7 +29,14 @@ export default function SessionPage() {
   const [elapsed, setElapsed] = useState(0);
   const [complete, setComplete] = useState(false);
   const [showCoins, setShowCoins] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && "Notification" in window && Notification.permission !== "denied" && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -44,9 +51,9 @@ export default function SessionPage() {
     const totalDiff = v.target_pct - b.current_pct;
     if (totalDiff <= 0) { router.replace("/driver/home"); return; }
 
-    // Simulate charging over ~45 seconds (demo)
-    const DEMO_DURATION_MS = 45000;
-    const TICK_MS = 500;
+    // Simulate charging over exactly 15 seconds (demo)
+    const DEMO_DURATION_MS = 15000;
+    const TICK_MS = 100; // tick more frequently for smoother animation
     const pctPerTick = (totalDiff / DEMO_DURATION_MS) * TICK_MS;
 
     intervalRef.current = setInterval(() => {
@@ -76,7 +83,11 @@ export default function SessionPage() {
 
       addLocalSession({
         id: `sess-demo-${Date.now()}`,
-        date: new Date().toISOString().slice(0, 10),
+        date: (() => {
+          const d = new Date();
+          const istTime = new Date(d.getTime() + (330 * 60000));
+          return istTime.toISOString().replace('Z', '+05:30');
+        })(),
         station_name: booking.station.name,
         city: booking.station.city,
         energy_kwh: Math.round(energyUsed * 10) / 10,
@@ -88,6 +99,19 @@ export default function SessionPage() {
       });
 
       addEcoCoins(coinsEarned);
+
+      // Notifications
+      const settings = getSettings();
+      if (settings.notifications) {
+        setToastVisible(true);
+        setTimeout(() => setToastVisible(false), 5000);
+        
+        if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
+          if (document.visibilityState !== "visible") {
+             new Notification(`Charging complete! Your vehicle is charged to ${vehicle.target_pct}%.`);
+          }
+        }
+      }
 
       // Show coin animation after 1s
       setTimeout(() => setShowCoins(true), 1000);
@@ -110,7 +134,17 @@ export default function SessionPage() {
     const finalCoinsEarned = calculateCoinsEarned(finalCost);
 
     return (
-      <main className="flex-1 px-4 py-5 pb-24 lg:pb-8 max-w-screen-md mx-auto w-full flex flex-col items-center">
+      <main className="flex-1 px-4 py-5 pb-24 lg:pb-8 max-w-screen-md mx-auto w-full flex flex-col items-center relative">
+              {/* Toast Notification */}
+              {toastVisible && (
+                <div className="fixed top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-50 bg-green-500 text-black px-4 py-3 rounded-xl shadow-xl flex justify-between items-center animate-fade-slide-up border border-green-400">
+                  <span className="font-bold text-sm">Charging complete! Your vehicle is charged to {vehicle.target_pct}%.</span>
+                  <button onClick={() => setToastVisible(false)} className="opacity-75 hover:opacity-100 transition-opacity">
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
+
               {/* Success animation */}
               <div className="mt-8 mb-6 text-center animate-fade-slide-up">
                 <div
@@ -246,15 +280,7 @@ export default function SessionPage() {
               ))}
             </div>
 
-            {/* Demo notice */}
-            <div
-              className="card text-center animate-fade-slide-up stagger-3"
-              style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(245,158,11,0.05)" }}
-            >
-              <p className="text-xs" style={{ color: "#F59E0B" }}>
-                ⏱ Demo mode — simulated charging in ~45 seconds
-              </p>
-            </div>
+
     </main>
   );
 }
