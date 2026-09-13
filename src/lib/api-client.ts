@@ -1,7 +1,6 @@
 "use client";
 import { Station } from "./types";
-import { mapDbToFrontend } from "./db-to-frontend";
-import { getCustomStations } from "./stations-overlay";
+import { getStationOverrides, getCustomStations } from "./stations-overlay";
 
 /**
  * Fetches the full dataset from the backend, maps it (which applies overrides),
@@ -14,8 +13,11 @@ export async function fetchAllStations(): Promise<Station[]> {
     const res = await fetch("/data/stations_full.json");
     const json = await res.json();
     
-    // 2. Map through mapDbToFrontend which applies the override layer
-    let stations: Station[] = Array.isArray(json) ? json.map(mapDbToFrontend) : [];
+    // 2. Map to apply the override layer directly
+    let stations: Station[] = Array.isArray(json) ? json.map(s => {
+      const overrides = getStationOverrides(s.id);
+      return overrides ? { ...s, ...overrides } : s;
+    }) : [];
     
     // 3. Append custom stations (which are completely authored by operators)
     const custom = getCustomStations();
