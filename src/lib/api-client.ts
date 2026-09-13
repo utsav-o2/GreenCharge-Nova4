@@ -10,12 +10,12 @@ import { getCustomStations } from "./stations-overlay";
  */
 export async function fetchAllStations(): Promise<Station[]> {
   try {
-    // 1. Fetch real dataset from API (high pageSize to ensure we get all)
-    const res = await fetch("/api/stations?pageSize=2000");
+    // 1. Fetch real dataset from static JSON
+    const res = await fetch("/data/stations_full.json");
     const json = await res.json();
     
     // 2. Map through mapDbToFrontend which applies the override layer
-    let stations: Station[] = json.data ? json.data.map(mapDbToFrontend) : [];
+    let stations: Station[] = Array.isArray(json) ? json.map(mapDbToFrontend) : [];
     
     // 3. Append custom stations (which are completely authored by operators)
     const custom = getCustomStations();
